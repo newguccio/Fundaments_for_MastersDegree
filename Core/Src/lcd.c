@@ -27,7 +27,7 @@
 
 #define CMD(x)					((x) | 0x100) //	piszemy CMD(jedno z makr z góry) -> i teraz juz automatycznie
 
-
+//static bo uzywamy ich tylko w tym pliku do kolejnych funkcji ktore dopiero sa przekazywane uzytkownikow- zapewnia to prywatnosc
 static void lcd_command(uint8_t command){
 
 	HAL_GPIO_WritePin(lcd_dc_GPIO_Port, lcd_dc_Pin, 0); // zamiast 0 mozna dac GPIO_PIN_RESET ale dla mnie tak czytelniej jest jak jest tu
@@ -99,6 +99,8 @@ void lcd_init(void){
 }
 
 
+// my mamy little endian w cortexie wiec ta funkcja konwertuje jakby na big endian bo najpier przesuwa na starsze
+//jesli uzywamy DMA to  nie uzywamy tego jakby tylko odrazu bierzemy dane a tam mimo ze zapisalismy w kolejnosci jak chcemy procesor najpierw i tak interpretuje od młodszej strony
 static void lcd_data16(uint16_t value)
 {
 	lcd_data(value >> 8);		//podajemy 16 bity a wpisuje przesuniety o 8. Przyklad analogiczny ale dla 8: jesli mamy 22221111 to bedzie 00002222 i to czyta jako 2222
@@ -107,6 +109,7 @@ static void lcd_data16(uint16_t value)
 
 //@pos_x- pozycja osi x, pos_y pozycja osi y, width- szerokosc obrazka, height- wysokosc obrazka
 //podajemy x,y czyli skad zaczynamy a potem width,height czyli wielkosc
+//sluzy tylko do wyznaczanie obszaru w ktorym potem zapisujemy cokolwiek chcemy
 static void lcd_set_window(int pos_x, int pos_y, int width, int height){
 
 	lcd_command(ST7735S_CASET);
@@ -117,6 +120,77 @@ static void lcd_set_window(int pos_x, int pos_y, int width, int height){
 	lcd_data16(1 + pos_y);
 	lcd_data16(1 + pos_y + height -1);
 }
+/*
+//nie jest staic bo jest dla uzytkownika
+void lcd_fill_box(int x, int y, int width, int height, uint16_t color)
+{
+	lcd_set_window(x, y, width, height);
+	lcd_command(ST7735S_RAMWR);
+	for (int i = 0; i < width * height; i++)
+		lcd_data16(color);
+}
+
+//nowa zmieniona niżej
+
+void lcd_put_pixel(int x, int y, uint16_t color)
+{
+  lcd_fill_box(x, y, 1, 1, color);
+}
+*/
+
+/*
+void lcd_draw_image(int x, int y, int width, int height, const uint8_t* data)	//uint8_t bo spi transmit to 8 bitów
+{
+	lcd_set_window(x, y, width, height);
+
+	lcd_command(ST7735S_RAMWR);
+	używajac tej metody co jeden bit machamy dc i cs co jest nie potrzebne, bo można to zrobic raz i przekazac adres do tablicy i za jednym rozkazem wyslac dane
+	//for (int i = 0; i < width * height * 2; i++)
+	//	lcd_data(data[i]);
+
+	HAL_GPIO_WritePin(lcd_dc_GPIO_Port, lcd_dc_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(lcd_cs_GPIO_Port, lcd_cs_Pin, GPIO_PIN_RESET);
+	HAL_SPI_Transmit(&hspi1, (uint8_t*)data, width * height * 2, HAL_MAX_DELAY);  //  *2 bo transmitujemy 8bitow a kazdy kolor wazy 16, HAL_SPI_Transmit uzyc potem HAL_SPI_Transmit_DMA(...) bo nie mozemy miec dluego delay w rtos
+	HAL_GPIO_WritePin(lcd_cs_GPIO_Port, lcd_cs_Pin, GPIO_PIN_SET);
+}
+*/
+
+static uint16_t frame_buffer[LCD_WIDTH * LCD_HEIGHT];
+
+void lcd_put_pixel(void *surface,int x, int y, uint16_t color)
+{
+	if (x < 0 || x >= LCD_WIDTH || y < 0 || y >= LCD_HEIGHT) {
+	        return;
+	    }
+	frame_buffer[x + y * LCD_WIDTH] = color;	// ekran jest 2D więc ma wspolrzedne x i y a my przerabiamy go na 1D więc mamy (x_wierszy + y_kolumny * szerokosc) = miejsce tego piksela z perspektywy tablicy 1 wymiarowej
+}
+
+
+void lcd_copy(void)
+{
+	lcd_set_window(0,0, LCD_WIDTH, LCD_HEIGHT);	// CAŁY EKRAN
+	lcd_command(ST7735S_RAMWR);
+	HAL_GPIO_WritePin(lcd_dc_GPIO_Port, lcd_dc_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(lcd_cs_GPIO_Port, lcd_cs_Pin, GPIO_PIN_RESET);
+	HAL_SPI_Transmit(&hspi1, (uint8_t*)frame_buffer, sizeof(frame_buffer), HAL_MAX_DELAY);
+	HAL_GPIO_WritePin(lcd_cs_GPIO_Port, lcd_cs_Pin, GPIO_PIN_SET);
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

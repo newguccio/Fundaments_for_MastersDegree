@@ -26,7 +26,13 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "lcd.h"
+
+#include "forbot_logo.c"
+
+//#include "lcd.h" //zamiast tego te na dole
+#include "hagl.h"
+#include "font6x9.h"
+#include "rgb565.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -95,15 +101,49 @@ int main(void)
   MX_SPI1_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-	lcd_init();
+
+  lcd_init();
+
+  uint16_t test_image[64*64];  //bufor na obrazek
+
+  //tworzymy strukture ktora przyjmuje wartosci z hagl_init, czyli tam sie robi struktra backend i ustawia parametry,
+  //a na koniec zwraca nam do niej adres ktory przypisujemy juz nowej strukturze ktora później sobie zmieniac mozemy
+  //czyli to jest to samo co bylo wewnatrz tej funkcji przypisane ale juz wyciagniete dla nas na zewnatrz
+  hagl_backend_t *backend = hagl_init();
+
+  //jak robimy ta strukture to chcemy zeby zapisywala pixele wedlug naszej funkcji wiec trzeba to zmieniac na sztywno
+  //bo to co mamy w pliku hagl_hal_color;   #define hagl_hal_put_pixel 	lcd_put_pixel jest tylko na chwile bo tutaj to nadpisujemy juz a wtedy po prostu trzeda dac cokolwiek
+  backend->put_pixel = (void*)lcd_put_pixel;
+
+  //test
+  if (backend == NULL) {
+      while(1);
+  }
+
+
+
+	for (int i = 0; i < 8; i++) {
+	  hagl_draw_rounded_rectangle(backend, 2+i, 2+i, 160-i, 128-i, 8-i, rgb565(0, 0, i*16));
+	}
+	hagl_put_text(backend, L"kocham pupusia au", 40, 55, BLUE, font6x9);
+
+	lcd_copy();
+
+
+	/*for (int y = 0; y < LCD_HEIGHT; y++) {
+	  for (int x = 0; x < LCD_WIDTH; x++) {
+	    lcd_put_pixel(x, y, __REV16(x / 10 + y * 16));
+	  }
+	}
+	lcd_copy();*/
   /* USER CODE END 2 */
 
   /* Init scheduler */
-  osKernelInitialize();  /* Call init function for freertos objects (in cmsis_os2.c) */
-  MX_FREERTOS_Init();
+//  osKernelInitialize();  /* Call init function for freertos objects (in cmsis_os2.c) */
+ // MX_FREERTOS_Init();
 
   /* Start scheduler */
-  osKernelStart();
+ // osKernelStart();
 
   /* We should never get here as control is now taken by the scheduler */
 
@@ -111,6 +151,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
