@@ -31,6 +31,8 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "hagl.h"
+#include "rgb565.h"
 
 /* USER CODE END Includes */
 

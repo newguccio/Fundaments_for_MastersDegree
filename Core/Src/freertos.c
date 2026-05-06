@@ -25,12 +25,15 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+//biblioteki lcd.h nie trzeba bo jest w pliku hagl_color
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+extern int16_t pos_x = 0;
+extern int16_t pos_y = 0;
+//nw czy trzeba ale narazie zostawiam
+extern const unsigned char font6x9[];
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -90,16 +93,18 @@ void StartDefaultTask(void *argument);
 void Break_warning(void *argument);
 void adj_position(void *argument);
 
-void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
+void MX_FREERTOS_Init(void *pdisplay); /* (MISRA C 2004 rule 8.1) */
 
 /**
   * @brief  FreeRTOS initialization
   * @param  None
   * @retval None
   */
-void MX_FREERTOS_Init(void) {
+void MX_FREERTOS_Init(void *pdisplay) {
   /* USER CODE BEGIN Init */
 
+	//bierzemy adres tego z maiina i tutaj lokalnie tworzymy i zmieniamy strukture
+	hagl_backend_t* backend = (hagl_backend_t*)pdisplay;
   /* USER CODE END Init */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -124,16 +129,16 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the thread(s) */
   /* creation of defaultTask */
-  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+  defaultTaskHandle = osThreadNew(StartDefaultTask, backend, &defaultTask_attributes);
 
   /* creation of ir_sensor */
-  ir_sensorHandle = osThreadNew(Break_warning, NULL, &ir_sensor_attributes);
+  ir_sensorHandle = osThreadNew(Break_warning, backend, &ir_sensor_attributes);
 
   /* creation of open_sensor */
-  open_sensorHandle = osThreadNew(Break_warning, NULL, &open_sensor_attributes);
+  open_sensorHandle = osThreadNew(Break_warning, backend, &open_sensor_attributes);
 
   /* creation of ship_position */
-  ship_positionHandle = osThreadNew(adj_position, NULL, &ship_position_attributes);
+  ship_positionHandle = osThreadNew(adj_position, backend, &ship_position_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -172,11 +177,23 @@ void StartDefaultTask(void *argument)
 /* USER CODE END Header_Break_warning */
 void Break_warning(void *argument)
 {
+	hagl_backend_t* backend = (hagl_backend_t*)argument;
+	uint8_t value;
+	static uint8_t last_value = 0; // musi byc wspolne dla kazdego wykonania
+	//wchar_t text_buffer[20];
   /* USER CODE BEGIN Break_warning */
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+	  hagl_clear(backend);
+	  value = HAL_GPIO_ReadPin(door_sensor_GPIO_Port, door_sensor_Pin);
+	  if(value != last_value){
+		  last_value = value;
+		  hagl_put_text(backend, L"otwarte drzwi", 0, 0, BLUE, font6x9);
+		  lcd_copy();
+	  }
+
+      osDelay(100);
   }
   /* USER CODE END Break_warning */
 }

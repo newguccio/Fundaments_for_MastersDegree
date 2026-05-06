@@ -4,7 +4,7 @@
 
 
 #define LCD_WIDTH	160
-#define LCD_HEIGHT	128
+#define LCD_HEIGHT	129
 
 
 #define little_endian_DMA 		1
