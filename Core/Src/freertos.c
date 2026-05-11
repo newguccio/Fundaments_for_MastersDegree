@@ -30,10 +30,22 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-extern int16_t pos_x = 0;
-extern int16_t pos_y = 0;
+extern int16_t pos_x; // nie moge dac =0; bo to dziala jakbym inicjalizowal a tego nie robie, ja tylko pokazuje ze to jest
+extern int16_t pos_y;
 //nw czy trzeba ale narazie zostawiam
 extern const unsigned char font6x9[];
+
+typedef struct{
+
+	hagl_backend_t* backend;
+	GPIO_TypeDef* port;
+	uint16_t pin;
+	wchar_t* msg;
+	uint16_t color;
+	uint16_t last_value;
+}SensorConfig_h;
+
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -48,6 +60,16 @@ extern const unsigned char font6x9[];
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
+
+//handle do adresu mutexu
+osMutexId_t screen_mutexHandle;
+
+osMutexAttr_t screen_mutexAttribute ={
+		"screenMutex",
+		osMutexPrioInherit | osMutexRecursive,  //dziedziczenie priorytetu i uniemozliwienie zablokowanie taskowi samego siebie jesli kilka razy pod rzad jest ten sam
+		NULL,
+		0U
+};
 
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
@@ -86,7 +108,7 @@ const osMessageQueueAttr_t safety_queue_attributes = {
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
-
+void Break_warning2(void *argument); //chwila
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void *argument);
@@ -94,7 +116,7 @@ void Break_warning(void *argument);
 void adj_position(void *argument);
 
 void MX_FREERTOS_Init(void *pdisplay); /* (MISRA C 2004 rule 8.1) */
-
+void lcd_use(hagl_backend_t* surface, const wchar_t* message, uint16_t color ); //const tak zapobiegawczo
 /**
   * @brief  FreeRTOS initialization
   * @param  None
@@ -105,10 +127,21 @@ void MX_FREERTOS_Init(void *pdisplay) {
 
 	//bierzemy adres tego z maiina i tutaj lokalnie tworzymy i zmieniamy strukture
 	hagl_backend_t* backend = (hagl_backend_t*)pdisplay;
+
+	SensorConfig_h DoorSensor;
+	SensorConfig_h IRSensor;
+
+
+
+
   /* USER CODE END Init */
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
+
+	//mutex create
+	screen_mutexHandle = osMutexNew(&screen_mutexAttribute);
+
   /* USER CODE END RTOS_MUTEX */
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
@@ -132,7 +165,7 @@ void MX_FREERTOS_Init(void *pdisplay) {
   defaultTaskHandle = osThreadNew(StartDefaultTask, backend, &defaultTask_attributes);
 
   /* creation of ir_sensor */
-  ir_sensorHandle = osThreadNew(Break_warning, backend, &ir_sensor_attributes);
+  ir_sensorHandle = osThreadNew(Break_warning2, backend, &ir_sensor_attributes);
 
   /* creation of open_sensor */
   open_sensorHandle = osThreadNew(Break_warning, backend, &open_sensor_attributes);
@@ -175,24 +208,31 @@ void StartDefaultTask(void *argument)
 * @retval None
 */
 /* USER CODE END Header_Break_warning */
+
+//pusty handle dla innego taska
+void Break_warning2(void *argument){
+
+	  for(;;)
+	  {
+	    osDelay(1);
+	  }
+}
 void Break_warning(void *argument)
 {
-	hagl_backend_t* backend = (hagl_backend_t*)argument;
-	uint8_t value;
-	static uint8_t last_value = 0; // musi byc wspolne dla kazdego wykonania
-	//wchar_t text_buffer[20];
+
   /* USER CODE BEGIN Break_warning */
+	uint8_t last_value = 0;
+	uint8_t value = 0;
   /* Infinite loop */
   for(;;)
   {
-	  hagl_clear(backend);
 	  value = HAL_GPIO_ReadPin(door_sensor_GPIO_Port, door_sensor_Pin);
 	  if(value != last_value){
-		  last_value = value;
-		  hagl_put_text(backend, L"otwarte drzwi", 0, 0, BLUE, font6x9);
-		  lcd_copy();
-	  }
 
+		  if(value == 1) lcd_use(argument, L"drzwi otwarte" , BLUE ); // musi byc L przed bo dlugi char 16bitowy
+
+		  last_value = value;
+	  }
       osDelay(100);
   }
   /* USER CODE END Break_warning */
@@ -218,6 +258,26 @@ void adj_position(void *argument)
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
+void lcd_use(hagl_backend_t* surface, const wchar_t* message, uint16_t color ){
+
+	hagl_backend_t* backend = (hagl_backend_t*)surface;
+
+	  if(osMutexAcquire(screen_mutexHandle, osWaitForever) == osOK){
+
+		hagl_put_text(backend, L"otwarte drzwi", pos_x, pos_y, BLUE, font6x9);
+		pos_y += 12;
+		hagl_fill_rectangle(backend, 0, pos_y, 160, pos_y + 12, BLACK);
+
+		  		if(pos_y > 128) {
+		  			pos_y  = 0;
+		  			pos_x  = 0;
+		  		}
+		  		lcd_copy();
+
+	  osMutexRelease(screen_mutexHandle);
+	  }
+}
+
 
 /* USER CODE END Application */
 

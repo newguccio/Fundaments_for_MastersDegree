@@ -55,25 +55,6 @@
 //musi byc int a nie uint bo trzeba sprawdzac czy wychodzi na minus
 int16_t pos_x = 0;
 int16_t pos_y = 0;
-
-//handle do adresu mutexu
-osMutexId_t screen_mutexHandle;
-
-osMutexAttr_t screen_mutexAttribute ={
-		"screenMutex",
-		osMutexPrioInherit | osMutexRecursive,  //dziedziczenie priorytetu i uniemozliwienie zablokowanie taskowi samego siebie jesli kilka razy pod rzad jest ten sam
-		NULL,
-		0U
-};
-
-//mutex create
-screen_mutexHandle = osMutexNew(&screen_mutexAttribute);
-
-
-
-
-
-
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
