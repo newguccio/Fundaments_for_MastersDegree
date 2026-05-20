@@ -66,7 +66,7 @@ void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : ir_sensor_Pin */
   GPIO_InitStruct.Pin = ir_sensor_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Mode =  GPIO_MODE_INPUT;									//GPIO_MODE_IT_RISING; to dla przerwania by bylo
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(ir_sensor_GPIO_Port, &GPIO_InitStruct);
 

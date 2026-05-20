@@ -60,6 +60,7 @@ int16_t pos_y = 0;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 void MX_FREERTOS_Init(void *pdisplay);
+void MEMS_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -102,6 +103,8 @@ int main(void)
   MX_SPI1_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
+  //HAL_NVIC_SetPriorityGrouping( 0 );  //tutaj nie musze tego dawac ale w poprzednim projkecie musialem więc nw
+  traceSTART();  //segger start
 
   lcd_init();
 
@@ -124,7 +127,7 @@ int main(void)
 	//hagl_put_text(backend, L"Dane z czujnika: ", 0, 0, BLUE, font6x9);
 
 	//lcd_copy();
-
+ // MEMS_Init();
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -191,7 +194,13 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+void MEMS_Init(void){
 
+	IKS4A1_MOTION_SENSOR_Init(IKS4A1_LSM6DSV16X_0, MOTION_ACCELERO|MOTION_GYRO); //bitwise opeartion | czyli poprostu dodajemy wartosci pod tymi nazwami
+	IKS4A1_MOTION_SENSOR_Enable(IKS4A1_LSM6DSV16X_0, MOTION_ACCELERO|MOTION_GYRO);
+	IKS4A1_MOTION_SENSOR_SetOutputDataRate(IKS4A1_LSM6DSV16X_0,MOTION_ACCELERO|MOTION_GYRO,30.0f);  // 30 Hz, to jest ustawienie predkosci ktore nie rownoznaczne z wzbudzeniem czujnika bo nadajemy mu wartosc odczytu
+
+}
 /* USER CODE END 4 */
 
 /**

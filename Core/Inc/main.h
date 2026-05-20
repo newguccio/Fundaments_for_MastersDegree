@@ -33,7 +33,7 @@ extern "C" {
 /* USER CODE BEGIN Includes */
 #include "hagl.h"
 #include "rgb565.h"
-
+#include "iks4a1_motion_sensors.h"
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/

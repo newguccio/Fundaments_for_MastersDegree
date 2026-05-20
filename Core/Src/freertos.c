@@ -25,6 +25,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+		//ja dodalem
+//#include "iks4a1_motion_sensors_ex.h"		//ja dodalem
 //biblioteki lcd.h nie trzeba bo jest w pliku hagl_color
 /* USER CODE END Includes */
 
@@ -43,6 +45,7 @@ typedef struct{
 	wchar_t* msg;
 	uint16_t color;
 	uint16_t last_value;
+	uint16_t value;
 }SensorConfig_h;
 
 
@@ -108,15 +111,15 @@ const osMessageQueueAttr_t safety_queue_attributes = {
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
-void Break_warning2(void *argument); //chwila
 /* USER CODE END FunctionPrototypes */
 
-void StartDefaultTask(void *argument);
+void StartDefaultTask(void *argument); // zawsze musimy przekazywac taskowi void a wewntarz mozemy przypisac cokolwiek juz
 void Break_warning(void *argument);
 void adj_position(void *argument);
 
 void MX_FREERTOS_Init(void *pdisplay); /* (MISRA C 2004 rule 8.1) */
-void lcd_use(hagl_backend_t* surface, const wchar_t* message, uint16_t color ); //const tak zapobiegawczo
+
+void lcd_use(hagl_backend_t* backend, const wchar_t* message, uint16_t color ); //const tak zapobiegawczo
 /**
   * @brief  FreeRTOS initialization
   * @param  None
@@ -128,12 +131,25 @@ void MX_FREERTOS_Init(void *pdisplay) {
 	//bierzemy adres tego z maiina i tutaj lokalnie tworzymy i zmieniamy strukture
 	hagl_backend_t* backend = (hagl_backend_t*)pdisplay;
 
-	SensorConfig_h DoorSensor;
-	SensorConfig_h IRSensor;
+	static SensorConfig_h DoorSensor; //zeby byla przez caly czas dzialania programu
+	static SensorConfig_h IRSensor;
+
+	DoorSensor.backend = backend;
+	DoorSensor.msg = L"Drzwi otwarte";
+	DoorSensor.last_value = 0;
+	DoorSensor.value = 1;
+	DoorSensor.pin = door_sensor_Pin;
+	DoorSensor.port = door_sensor_GPIO_Port;
+	DoorSensor.color = BLUE;
 
 
-
-
+	IRSensor.backend = backend;
+	IRSensor.msg = L"wykryto ruch";
+	IRSensor.last_value = 0;
+	IRSensor.value = 1;
+	IRSensor.pin = ir_sensor_Pin;
+	IRSensor.port = ir_sensor_GPIO_Port;
+	IRSensor.color = GREEN;
   /* USER CODE END Init */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -162,13 +178,13 @@ void MX_FREERTOS_Init(void *pdisplay) {
 
   /* Create the thread(s) */
   /* creation of defaultTask */
-  defaultTaskHandle = osThreadNew(StartDefaultTask, backend, &defaultTask_attributes);
+  defaultTaskHandle = osThreadNew(StartDefaultTask, backend, &defaultTask_attributes); //zawsze przekazujemy jako argumen &zmienna albo i nie
 
   /* creation of ir_sensor */
-  ir_sensorHandle = osThreadNew(Break_warning2, backend, &ir_sensor_attributes);
+  ir_sensorHandle = osThreadNew(Break_warning, &IRSensor, &ir_sensor_attributes);
 
   /* creation of open_sensor */
-  open_sensorHandle = osThreadNew(Break_warning, backend, &open_sensor_attributes);
+  open_sensorHandle = osThreadNew(Break_warning, &DoorSensor, &open_sensor_attributes);
 
   /* creation of ship_position */
   ship_positionHandle = osThreadNew(adj_position, backend, &ship_position_attributes);
@@ -209,31 +225,25 @@ void StartDefaultTask(void *argument)
 */
 /* USER CODE END Header_Break_warning */
 
-//pusty handle dla innego taska
-void Break_warning2(void *argument){
 
-	  for(;;)
-	  {
-	    osDelay(1);
-	  }
-}
+
 void Break_warning(void *argument)
 {
+	SensorConfig_h* sensor = (SensorConfig_h*)argument;
 
   /* USER CODE BEGIN Break_warning */
-	uint8_t last_value = 0;
-	uint8_t value = 0;
+	uint8_t value = sensor->value;
   /* Infinite loop */
   for(;;)
   {
-	  value = HAL_GPIO_ReadPin(door_sensor_GPIO_Port, door_sensor_Pin);
-	  if(value != last_value){
+	  value = HAL_GPIO_ReadPin(sensor->port, sensor->pin);
+	  if(value != sensor->last_value){
 
-		  if(value == 1) lcd_use(argument, L"drzwi otwarte" , BLUE ); // musi byc L przed bo dlugi char 16bitowy
+		  if(value == sensor->value) lcd_use(sensor->backend, sensor->msg , sensor->color); // musi byc L przed bo dlugi char 16bitowy
 
-		  last_value = value;
+		  sensor->last_value = value;
 	  }
-      osDelay(100);
+      osDelay(50);
   }
   /* USER CODE END Break_warning */
 }
@@ -248,23 +258,43 @@ void Break_warning(void *argument)
 void adj_position(void *argument)
 {
   /* USER CODE BEGIN adj_position */
+
+	hagl_backend_t* backend = (hagl_backend_t*)argument;
+
+	IKS4A1_MOTION_SENSOR_AxesRaw_t axes;
+
+	wchar_t axes_buffer[64]= {0}; // bo wchar oczekuje lcd_use
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+// !!!!cos pierdzieli ta bilbioteka i jest multiple definition dla malloca, narazie dalem allow multiple definition ale to gowno wiec do zmiany !!!!
+
+	  memset(axes_buffer, 0, sizeof(axes_buffer));
+	  IKS4A1_MOTION_SENSOR_GetAxesRaw(IKS4A1_LSM6DSV16X_0, MOTION_GYRO, &axes);
+	 //printf("GYRO DATA: %d %d %d \n", (int)axes.x, (int)axes.y, (int)axes.z);
+
+
+	//  swprintf(axes_buffer, 64, L"GYR X%dY%dZ%d", (int)axes.x, (int)axes.y, (int)axes.z);
+	 // lcd_use(backend, axes_buffer , RED);//typecasting tak na wszelki
+
+	  memset(axes_buffer, 0, sizeof(axes_buffer));
+	  IKS4A1_MOTION_SENSOR_GetAxesRaw(IKS4A1_LSM6DSV16X_0, MOTION_ACCELERO, &axes);
+	  //printf("ACCELERO DATA: %d %d %d \n", (int)axes.x, (int)axes.y, (int)axes.z);
+	//  swprintf(axes_buffer, 64, L"ACC X%dY%dZ%d", (int)axes.x, (int)axes.y, (int)axes.z);
+	 // lcd_use(backend, axes_buffer , WHITE);
+
+    osDelay(400);
   }
   /* USER CODE END adj_position */
 }
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
-void lcd_use(hagl_backend_t* surface, const wchar_t* message, uint16_t color ){
-
-	hagl_backend_t* backend = (hagl_backend_t*)surface;
+void lcd_use(hagl_backend_t* backend, const wchar_t* message, uint16_t color ){
 
 	  if(osMutexAcquire(screen_mutexHandle, osWaitForever) == osOK){
 
-		hagl_put_text(backend, L"otwarte drzwi", pos_x, pos_y, BLUE, font6x9);
+		hagl_put_text(backend, message, pos_x, pos_y, color, font6x9);
 		pos_y += 12;
 		hagl_fill_rectangle(backend, 0, pos_y, 160, pos_y + 12, BLACK);
 
