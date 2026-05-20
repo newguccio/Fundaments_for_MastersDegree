@@ -127,7 +127,7 @@ int main(void)
 	//hagl_put_text(backend, L"Dane z czujnika: ", 0, 0, BLUE, font6x9);
 
 	//lcd_copy();
- // MEMS_Init();
+  MEMS_Init();
   /* USER CODE END 2 */
 
   /* Init scheduler */

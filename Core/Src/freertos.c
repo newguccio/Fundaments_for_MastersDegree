@@ -135,7 +135,7 @@ void MX_FREERTOS_Init(void *pdisplay) {
 	static SensorConfig_h IRSensor;
 
 	DoorSensor.backend = backend;
-	DoorSensor.msg = L"Drzwi otwarte";
+	DoorSensor.msg = L"Drzwiotwarte";
 	DoorSensor.last_value = 0;
 	DoorSensor.value = 1;
 	DoorSensor.pin = door_sensor_Pin;
@@ -274,16 +274,18 @@ void adj_position(void *argument)
 	 //printf("GYRO DATA: %d %d %d \n", (int)axes.x, (int)axes.y, (int)axes.z);
 
 
-	//  swprintf(axes_buffer, 64, L"GYR X%dY%dZ%d", (int)axes.x, (int)axes.y, (int)axes.z);
-	 // lcd_use(backend, axes_buffer , RED);//typecasting tak na wszelki
+	  swprintf(axes_buffer, 64, L"GYR X%dY%dZ%d", (int)axes.x, (int)axes.y, (int)axes.z);
+	  lcd_use(backend, axes_buffer , RED);//typecasting tak na wszelki
+
+	  osDelay(500);
 
 	  memset(axes_buffer, 0, sizeof(axes_buffer));
 	  IKS4A1_MOTION_SENSOR_GetAxesRaw(IKS4A1_LSM6DSV16X_0, MOTION_ACCELERO, &axes);
 	  //printf("ACCELERO DATA: %d %d %d \n", (int)axes.x, (int)axes.y, (int)axes.z);
-	//  swprintf(axes_buffer, 64, L"ACC X%dY%dZ%d", (int)axes.x, (int)axes.y, (int)axes.z);
-	 // lcd_use(backend, axes_buffer , WHITE);
+	  swprintf(axes_buffer, 64, L"ACC X%dY%dZ%d", (int)axes.x, (int)axes.y, (int)axes.z);
+	  lcd_use(backend, axes_buffer , WHITE);
 
-    osDelay(400);
+    osDelay(500);
   }
   /* USER CODE END adj_position */
 }
