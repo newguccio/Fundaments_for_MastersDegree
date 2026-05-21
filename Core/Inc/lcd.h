@@ -1,7 +1,7 @@
 #pragma once // plik nagłówkowy nie będzie włączany więcej niż raz do innych plików
 
 #include <stdint.h>
-
+#include <stdbool.h>
 
 #define LCD_WIDTH	160
 #define LCD_HEIGHT	129
@@ -42,3 +42,6 @@ void lcd_put_pixel(void *surface,int x, int y, uint16_t color);
 void lcd_draw_image(int x, int y, int width, int height, const uint8_t* data);
 
 void lcd_copy(void);
+
+void lcd_transfer_done(void);
+bool lcd_is_busy(void);

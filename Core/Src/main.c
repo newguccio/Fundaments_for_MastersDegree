@@ -61,6 +61,7 @@ int16_t pos_y = 0;
 void SystemClock_Config(void);
 void MX_FREERTOS_Init(void *pdisplay);
 void MEMS_Init(void);
+void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi);  //funkcja ktorej nigdzie nie uzywam jakby po prostu nadpisuje funckje __weak ktora gdzies tam jest i po prostu jak to dam do wykorzysta moją
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -142,6 +143,9 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+ // lcd_init();
+
+
   while (1)
   {
 
@@ -200,6 +204,17 @@ void MEMS_Init(void){
 	IKS4A1_MOTION_SENSOR_Enable(IKS4A1_LSM6DSV16X_0, MOTION_ACCELERO|MOTION_GYRO);
 	IKS4A1_MOTION_SENSOR_SetOutputDataRate(IKS4A1_LSM6DSV16X_0,MOTION_ACCELERO|MOTION_GYRO,30.0f);  // 30 Hz, to jest ustawienie predkosci ktore nie rownoznaczne z wzbudzeniem czujnika bo nadajemy mu wartosc odczytu
 
+}
+
+
+// to callback do podnoszenia flagi CS po skonczeniu przesylu DMA, poniewaz jak uzywamy DMA to nie wiemy
+//kiedy tak naprawde konczy sie transmisja a przeciez trzeba podniesc CS jak skonczymy
+void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
+{
+	if (hspi == &hspi1)
+	{
+		lcd_transfer_done();
+	}
 }
 /* USER CODE END 4 */
 

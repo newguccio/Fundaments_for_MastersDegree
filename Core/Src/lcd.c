@@ -3,6 +3,11 @@
 #include "lcd.h"
 #include "spi.h"
 
+
+// potrzbne zeby ekran wiedzial o rtosie i mozna bylo zawiesci taski
+#include "FreeRTOS.h"
+#include "task.h"
+
 //makra z datasheetu ekranu ktore odpowiadaja za komunikacje z wyswietlaczem
 #define ST7735S_SLPOUT			0x11
 #define ST7735S_DISPOFF			0x28
@@ -30,19 +35,33 @@
 //static bo uzywamy ich tylko w tym pliku do kolejnych funkcji ktore dopiero sa przekazywane uzytkownikow- zapewnia to prywatnosc
 static void lcd_command(uint8_t command){
 
+
+	//vTaskSuspendAll(); //v bo zwraca nic
+
+
 	HAL_GPIO_WritePin(lcd_dc_GPIO_Port, lcd_dc_Pin, 0); // zamiast 0 mozna dac GPIO_PIN_RESET ale dla mnie tak czytelniej jest jak jest tu
 	HAL_GPIO_WritePin(lcd_cs_GPIO_Port, lcd_cs_Pin, 0);	//
-	HAL_SPI_Transmit(&hspi1, &command, 1, 10);			//adres magistrali SPI ktorej chcemy uzyc, adres komendy, wartosc, czas- jesli cos sie jebie to te 10 moze rozwalac RTOS
+	HAL_SPI_Transmit(&hspi1, &command, 1, 1);			//adres magistrali SPI ktorej chcemy uzyc, adres komendy, wartosc, czas- jesli cos sie jebie to te 10 moze rozwalac RTOS, ale dajemy hal_max_delay
 	HAL_GPIO_WritePin(lcd_cs_GPIO_Port, lcd_cs_Pin, 1);
+
+
+	//xTaskResumeAll(); //x bo zwraca flage ktora inny program musi dostac jezeli ma wznowic dzialanie
 
 }
 
 static void lcd_data(uint8_t data){
 
+
+	//vTaskSuspendAll(); //v bo zwraca nic
+
+
 	HAL_GPIO_WritePin(lcd_dc_GPIO_Port, lcd_dc_Pin, 1); // zamiast 0 mozna dac GPIO_PIN_RESET ale dla mnie tak czytelniej jest jak jest tu
 	HAL_GPIO_WritePin(lcd_cs_GPIO_Port, lcd_cs_Pin, 0);	//
-	HAL_SPI_Transmit(&hspi1, &data, 1, 10);
+	HAL_SPI_Transmit(&hspi1, &data, 1, 1);
 	HAL_GPIO_WritePin(lcd_cs_GPIO_Port, lcd_cs_Pin, 1);
+
+
+	//xTaskResumeAll(); //x bo zwraca flage ktora inny program musi dostac jezeli ma wznowic dzialanie
 
 }
 
@@ -172,14 +191,26 @@ void lcd_copy(void)
 	lcd_command(ST7735S_RAMWR);
 	HAL_GPIO_WritePin(lcd_dc_GPIO_Port, lcd_dc_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(lcd_cs_GPIO_Port, lcd_cs_Pin, GPIO_PIN_RESET);
-	HAL_SPI_Transmit(&hspi1, (uint8_t*)frame_buffer, sizeof(frame_buffer), HAL_MAX_DELAY);
-	HAL_GPIO_WritePin(lcd_cs_GPIO_Port, lcd_cs_Pin, GPIO_PIN_SET);
+	HAL_SPI_Transmit_DMA(&hspi1, (uint8_t*)frame_buffer, sizeof(frame_buffer));
+	//HAL_GPIO_WritePin(lcd_cs_GPIO_Port, lcd_cs_Pin, GPIO_PIN_SET);
 
 }
 
 
 
+void lcd_transfer_done(void)
+{
+	HAL_GPIO_WritePin(lcd_cs_GPIO_Port, lcd_cs_Pin, GPIO_PIN_SET);
+}
 
+
+bool lcd_is_busy(void)
+{
+	if (HAL_SPI_GetState(&hspi1) == HAL_SPI_STATE_BUSY)
+		return true;
+	else
+		return false;
+}
 
 
 

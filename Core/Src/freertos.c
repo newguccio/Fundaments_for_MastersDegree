@@ -233,12 +233,18 @@ void Break_warning(void *argument)
 
   /* USER CODE BEGIN Break_warning */
 	uint8_t value = sensor->value;
+
   /* Infinite loop */
   for(;;)
   {
+
+
 	  value = HAL_GPIO_ReadPin(sensor->port, sensor->pin);
 	  if(value != sensor->last_value){
-
+			while (lcd_is_busy() == true)
+				      {
+				          osDelay(1);
+				      }
 		  if(value == sensor->value) lcd_use(sensor->backend, sensor->msg , sensor->color); // musi byc L przed bo dlugi char 16bitowy
 
 		  sensor->last_value = value;
@@ -267,6 +273,12 @@ void adj_position(void *argument)
   /* Infinite loop */
   for(;;)
   {
+
+
+	  while (lcd_is_busy() == true)
+	        {
+	            osDelay(1);
+	        }
 // !!!!cos pierdzieli ta bilbioteka i jest multiple definition dla malloca, narazie dalem allow multiple definition ale to gowno wiec do zmiany !!!!
 
 	  memset(axes_buffer, 0, sizeof(axes_buffer));
@@ -296,6 +308,7 @@ void lcd_use(hagl_backend_t* backend, const wchar_t* message, uint16_t color ){
 
 	  if(osMutexAcquire(screen_mutexHandle, osWaitForever) == osOK){
 
+
 		hagl_put_text(backend, message, pos_x, pos_y, color, font6x9);
 		pos_y += 12;
 		hagl_fill_rectangle(backend, 0, pos_y, 160, pos_y + 12, BLACK);
@@ -303,6 +316,7 @@ void lcd_use(hagl_backend_t* backend, const wchar_t* message, uint16_t color ){
 		  		if(pos_y > 128) {
 		  			pos_y  = 0;
 		  			pos_x  = 0;
+		  			hagl_fill_rectangle(backend, 0, pos_y, 160, pos_y + 12, BLACK);
 		  		}
 		  		lcd_copy();
 
